@@ -12,7 +12,10 @@ configure do
   set :session_secret, 'secret' 
 end
 
-# -before filter
+before do
+  # session[:signed_in] ||= false
+  session[:user] ||= nil
+end
 
 helpers do
   # render markdown file as HTML and render it
@@ -36,11 +39,6 @@ helpers do
       "message"
     end
   end
-
-  # check if the user is logged in
-  def logged_in?
-    session[:signed_in]  
-  end
 end
 
 # returns appropriate path for current environment
@@ -52,12 +50,20 @@ def data_path
   end
 end
 
-# load credentials based on the current environment
+def data_path_credentials
+  if ENV["RACK_ENV"] == "test"
+    File.expand_path("../test/test", __FILE__)
+  else
+    File.expand_path("../test", __FILE__)
+  end
+end
+
+# Load User Credentials
 def load_user_credentials
   credentials_path = if ENV["RACK_ENV"] == "test"
-    File.expand_path("../test/users.yml", __FILE__)
+    File.expand_path("../test/test/users.yml", __FILE__)
   else
-    File.expand_path("../users.yml", __FILE__)
+    File.expand_path("../test/users.yml", __FILE__)
   end
   YAML.load_file(credentials_path)
 end
@@ -65,7 +71,7 @@ end
 # verify that a user has access
 def valid_credentials?(user, pass)
   users = load_user_credentials
-
+  
   users.key?(user) &&
   users.any? { |usr, ncrptd_pss| usr == user && check?(pass, ncrptd_pss) }
 end
@@ -87,7 +93,7 @@ end
 
 # new document page
 get "/new" do
-  unless logged_in?
+  unless session[:user]
     session[:message] = "You must be signed in to do that."
     redirect "/"
   else
@@ -122,7 +128,7 @@ end
 
 # render page to edit file's contents
 get "/:file/edit" do
-  unless logged_in?
+  unless session[:user]
     session[:message] = "You must be signed in to do that."
     redirect "/"
   else
@@ -136,7 +142,7 @@ end
 
 # create a new file
 post "/new" do
-  unless logged_in?
+  unless session[:user]
     session[:message] = "You must be signed in to do that."
     redirect "/"
   else
@@ -159,7 +165,7 @@ end
 
 # edit the contents of a file and redirect to index page
 post "/:file/edit" do
-  unless logged_in?
+  unless session[:user]
     session[:message] = "You must be signed in to do that."
     redirect "/"
   else
@@ -175,7 +181,7 @@ end
 
 # delete a file
 post "/:file/delete" do
-  unless logged_in?
+  unless session[:user]
     session[:message] = "You must be signed in to do that."
     redirect "/"
   else
@@ -195,7 +201,6 @@ post "/sign_in" do
     status(422)
     erb :sign_in, layout: :layout
   else 
-    session[:signed_in] = true
     session[:user] = user
     session[:message] = "Welcome!"
     redirect "/"
@@ -204,11 +209,7 @@ end
 
 # sign out
 post "/sign_out" do
-  session[:signed_in] = false
-  session.delete(:user)
+  session[:user] = nil
   session[:message] = "You have been signed out"
   redirect "/"
 end
-
-
-# Something is broken with the sign_in and the valid_credentials?

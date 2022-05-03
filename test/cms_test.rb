@@ -11,6 +11,7 @@ class CMSTest < Minitest::Test
 
   def setup
     FileUtils.mkdir_p(data_path)
+    FileUtils.mkdir_p(data_path_credentials)
   end
   
   def app
@@ -21,6 +22,11 @@ class CMSTest < Minitest::Test
     last_request.env["rack.session"]
   end
 
+  # encrypt password for testing
+  def encrypt(password)
+    BCrypt::Password.create(password)
+  end
+
   # provides way to write documents during testing
   def create_document(name, content = "")
     File.open(File.join(data_path, name), "w") do |file|
@@ -28,8 +34,15 @@ class CMSTest < Minitest::Test
     end
   end
 
+  def create_user_document(name, user, pass)
+    File.open(File.join(data_path_credentials, name), "w") do |file|
+      encrypted = encrypt(pass)
+      file.write("{ #{user}: #{encrypted} }")
+    end
+  end
+
   def admin_session
-    { "rack.session" => { user: "admin", pass: "secret", signed_in: true} }
+    { "rack.session" => { user: "admin", pass: "secret" } }
   end
 
   def test_home_page
@@ -107,14 +120,6 @@ class CMSTest < Minitest::Test
   
     assert_equal 302, last_response.status # Assert that the user was redirected
     assert_equal "notafile.ext does not exist.", session[:message]
-
-    # get last_response["Location"] # Request the page that the user was redirected to
-  
-    # assert_equal 200, last_response.status
-    # assert_includes last_response.body, "notafile.ext does not exist"
-  
-    # get "/" # Reload the page
-    # refute_includes last_response.body, "notafile.ext does not exist" # Assert that our message has been removed
   end
 
   def test_edit_file_page
@@ -270,14 +275,14 @@ class CMSTest < Minitest::Test
 
   # Launch
   def test_create_new_document_without_filename
-    skip
+    # skip
     post "/new", { new_file: "" }, admin_session
     assert_equal 422, last_response.status
     assert_includes last_response.body, "A name is required"
   end
 
   def test_file_delete
-    skip
+    # skip
     create_document("file.txt")
   
     post "/file.txt/delete", {}, admin_session
@@ -293,7 +298,7 @@ class CMSTest < Minitest::Test
   end
 
   def test_file_delete_no_signin
-    skip
+    # skip
     post "/file.txt/delete"
     assert_equal(302, last_response.status)
     assert_equal("You must be signed in to do that.", session[:message])
@@ -301,15 +306,12 @@ class CMSTest < Minitest::Test
 
   # Launch
   def test_deleting_document
-    skip
+    # skip
     create_document("test.txt")
 
     post "/test.txt/delete", {}, admin_session
     assert_equal 302, last_response.status
     assert_equal("test.txt was deleted", session[:message])
-
-    # get last_response["Location"]
-    # assert_includes last_response.body, "test.txt was deleted"
 
     # get "/"
     # refute_includes last_response.body, "test.txt"
@@ -317,7 +319,7 @@ class CMSTest < Minitest::Test
 
   # Launch
   def test_deleting_document_signed_out
-    skip
+    # skip
     create_document("test.txt")
 
     post "/test.txt/delete"
@@ -325,12 +327,9 @@ class CMSTest < Minitest::Test
     assert_equal "You must be signed in to do that.", session[:message]
   end
 
-
-
-
   def test_sign_in_success
-    skip
-    create_document("users.yml")
+    # skip
+    create_user_document("users.yml", "admin", "secret")
     post "/sign_in", user: "admin", pass: "secret" 
     
     assert_equal(302, last_response.status)
@@ -346,7 +345,8 @@ class CMSTest < Minitest::Test
 
 
   def test_sign_in_new_document
-    skip
+    # skip
+    create_user_document("users.yml", "admin", "secret")
     post "sign_in", user: "admin", pass: "secret"
 
     assert_equal(302, last_response.status)
@@ -355,7 +355,8 @@ class CMSTest < Minitest::Test
   end
   
   def test_failed_sign_in
-    skip
+    # skip
+    create_user_document("users.yml", "admin", "secret")
     post "/sign_in", user: "fk", pass: "super_secret" 
     
     assert_equal(422, last_response.status)
@@ -364,7 +365,8 @@ class CMSTest < Minitest::Test
   end
 
   def test_sign_out
-    skip
+    # skip
+    create_user_document("users.yml", "admin", "secret")
     post "/sign_in", user: "admin", pass: "secret"
     post "/sign_out"
 
@@ -380,7 +382,7 @@ class CMSTest < Minitest::Test
 
   # Launch
   def test_signin_form
-    skip
+    # skip
     # get "/users/signin"
     get "/sign_in"
 
@@ -391,8 +393,9 @@ class CMSTest < Minitest::Test
 
   # Launch
   def test_signin
-    skip
+    # skip
     # post "/users/signin", username: "admin", password: "secret"
+    create_user_document("users.yml", "admin", "secret")
     post "/sign_in", user: "admin", pass: "secret"
     assert_equal 302, last_response.status
     assert_equal("Welcome!", session[:message])
@@ -404,8 +407,9 @@ class CMSTest < Minitest::Test
 
   # Launch
   def test_signin_with_bad_credentials
-    skip
+    # skip
     # post "/users/signin", username: "guest", password: "shhhh"
+    create_user_document("users.yml", "admin", "secret")
     post "/sign_in", user: "guest", pass: "shhhh"
     assert_equal 422, last_response.status
     assert_nil session[:user]
@@ -414,17 +418,10 @@ class CMSTest < Minitest::Test
 
   # Launch
   def test_signout
-    skip
-    get "/", {}, {"rack.session" => { user: "admin", pass: "secret", signed_in: true } }
+    # skip
+    get "/", {}, {"rack.session" => { user: "admin", pass: "secret"} }
     assert_includes last_response.body, "Signed in as admin"
 
-    # post "/users/signin", username: "admin", password: "secret"
-    # post "/sign_in", user: "admin", pass: "secret"
-
-    # get last_response["Location"]
-    # assert_includes last_response.body, "Welcome"
-
-    # post "/users/signout"
     post "/sign_out"
     assert_equal("You have been signed out", session[:message])
 
@@ -436,5 +433,6 @@ class CMSTest < Minitest::Test
 
   def teardown
     FileUtils.rm_rf(data_path)
+    FileUtils.rm_rf(data_path_credentials)
   end
 end
