@@ -3,7 +3,9 @@
       <li>
         <a href="/<%= file %>"><%= file %></a>
         <a href="/<%= file %>/edit">edit</a>
-        <form action="/<%= file %>/delete" method="post"><button type="submit">Delete</button><form>
+        <form action="/<%= file %>/delete" method="post">
+          <button type="submit">Delete</button>
+        </form>
       </li>
     <% end %>
 </ul>
@@ -11,8 +13,7 @@
 <form action="/new" method="get">
   <button type="submit">New Document</button>
 </form>
-<br>
-<br>
+
 <% if !session[:user] %>
   <form action="/sign_in" method="get">
     <button type="submit">Sign In</button>

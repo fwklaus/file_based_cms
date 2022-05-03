@@ -179,19 +179,6 @@ post "/:file/edit" do
   end
 end
 
-# delete a file
-post "/:file/delete" do
-  unless session[:user]
-    session[:message] = "You must be signed in to do that."
-    redirect "/"
-  else
-    file = params[:file]
-    FileUtils.rm(File.join(data_path, file))
-    session[:message] = "#{file} was deleted"
-    redirect "/"
-  end
-end
-
 # sign in
 post "/sign_in" do
   user, pass = params[:user], params[:pass]
@@ -212,4 +199,17 @@ post "/sign_out" do
   session[:user] = nil
   session[:message] = "You have been signed out"
   redirect "/"
+end
+
+# delete a file
+post "/:file/delete" do
+  unless session[:user]
+    session[:message] = "You must be signed in to do that."
+    redirect "/"
+  else
+    file = params[:file]
+    FileUtils.rm(File.join(data_path, file))
+    session[:message] = "#{file} was deleted"
+    redirect "/"
+  end
 end
