@@ -12,10 +12,7 @@ configure do
   set :session_secret, 'secret' 
 end
 
-before do
-  # @absolute_path = File.expand_path("..", __FILE__)
-  session[:signed_in] ||= false
-end
+# -before filter
 
 helpers do
   # render markdown file as HTML and render it
