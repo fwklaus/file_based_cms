@@ -18,9 +18,14 @@
   <form action="/sign_in" method="get">
     <button type="submit">Sign In</button>
   </form>
+  <form action="/sign_up" method="get">
+    <button type="submit">Sign Up</button>
+  </form>
 <% else %>
    <form action="/sign_out" method="post">
     <label><em>Signed in as <%= session[:user] %>.</em></label>
     <button type="submit">Sign Out</button>
   </form>
 <% end %>
+
+

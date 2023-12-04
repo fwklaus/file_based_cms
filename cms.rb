@@ -65,13 +65,13 @@ def load_user_credentials
   else
     File.expand_path("../test/users.yml", __FILE__)
   end
-  YAML.load_file(credentials_path)
+  Psych.load_file(credentials_path)
 end
 
 # verify that a user has access
 def valid_credentials?(user, pass)
   users = load_user_credentials
-  
+
   users.key?(user) &&
   users.any? { |usr, ncrptd_pss| usr == user && check?(pass, ncrptd_pss) }
 end
@@ -79,6 +79,28 @@ end
 # verify that a given raw password is equal to a hashed password
 def check?(password, encrypted_password)
   BCrypt::Password.new(encrypted_password) == password
+end
+
+def password_already_in_use?(file, password)
+  file.each do |username, pass|
+    return true if check?(password, pass)
+  end
+end
+
+def username_and_pass_unique?(file, username, password)
+  return false if file.nil?
+  return true if file.has_key?(username) || 
+                  password_already_in_use?(file, password)
+  false
+end
+
+def encrypt(password)
+  BCrypt::Password.create(password)
+end
+
+def write_users_file(file)
+  path = File.join(data_path_credentials, "users.yml")
+  File.write(path, file)
 end
 
 # home page
@@ -104,6 +126,10 @@ end
 # renders sign_in form
 get "/sign_in" do
   erb :sign_in
+end
+
+get "/sign_up" do
+  erb :sign_up
 end
 
 # displays file contents, or error message if file does not exist
@@ -137,6 +163,24 @@ get "/:file/edit" do
     @contents = File.read(file_path)
 
     erb :edit_file
+  end
+end
+
+post "/sign_up" do
+  username = params[:user]
+  password = params[:pass]
+  file = load_user_credentials
+  file = {} if file.nil?
+
+  unless username_and_pass_unique?(file, username, password)
+    session[:message] = "Username or password already exists"
+    erb :sign_up
+  else
+    encrypted_pass = encrypt(password)
+    file[username] = encrypted_pass
+    write_users_file(file)
+    session[:message] = "Welcome new user!"
+    redirect "/"
   end
 end
 
